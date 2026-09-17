@@ -97,7 +97,7 @@ cd front
 CHROME_BIN=</path/to/google/chrome> npm test
 ```
 
-Pour générer les rapports de tests et de couverture, exécutez `npm test -- --watch=false --browsers=ChromeHeadless --code-coverage` dans `front`. Le rapport JUnit se trouve dans `front/test-results/junit.xml` et les rapports de couverture HTML et Cobertura dans `front/coverage/microcrm/`. Le workflow **Project tests** publie ces fichiers comme artefacts `frontend-test-results` et `frontend-coverage-report`.
+Pour générer les rapports de tests et de couverture, exécutez `npm test -- --watch=false --browsers=ChromeHeadless --code-coverage` dans `front`. Le rapport JUnit se trouve dans `front/test-results/junit.xml` et les rapports de couverture HTML et Cobertura dans `front/coverage/microcrm/`. Le workflow **Project tests** affiche les résultats frontend dans le résumé de la CI et publie ces fichiers comme artefacts `frontend-test-results` et `frontend-coverage-report`.
 
 #### Serveur
 
