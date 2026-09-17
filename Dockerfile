@@ -1,11 +1,11 @@
-FROM node AS front-build
-
+FROM node:20 AS front-build
 COPY ./front /src
-
 WORKDIR /src
 
-RUN npm ci \
-    && npm run build -- --optimization
+RUN npm i
+
+COPY front/ ./
+RUN npm run build -- --optimization
 
 FROM gradle:jdk17 AS back-build
 
