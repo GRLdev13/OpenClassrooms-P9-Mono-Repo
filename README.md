@@ -52,7 +52,7 @@ Ce [monorepo](https://en.wikipedia.org/wiki/Monorepo) contient les 2 composantes
    java -jar build/libs/microcrm-0.0.1-SNAPSHOT.jar
    ```
 
-Puis ouvrir l'URL http://localhost:8080 dans votre navigateur.
+Puis ouvrir l'URL http://localhost:8081 dans votre navigateur.
 
 #### Client
 
@@ -97,6 +97,8 @@ cd front
 CHROME_BIN=</path/to/google/chrome> npm test
 ```
 
+Pour générer les rapports de tests et de couverture, exécutez `npm test -- --watch=false --browsers=ChromeHeadless --code-coverage` dans `front`. Le rapport JUnit se trouve dans `front/test-results/junit.xml` et les rapports de couverture HTML et Cobertura dans `front/coverage/microcrm/`. Le workflow **Project tests** publie ces fichiers comme artefacts `frontend-test-results` et `frontend-coverage-report`.
+
 #### Serveur
 
 Dans votre terminal:
@@ -106,7 +108,36 @@ cd back
 ./gradlew test
 ```
 
+Le rapport de couverture JaCoCo (HTML et XML) est généré dans `back/build/reports/jacoco/test/`. Dans GitHub Actions, il est téléchargeable depuis l'artefact `backend-jacoco-report` du workflow **Project tests**.
+
+### Analyse de sécurité avec CodeQL
+
+Après la réussite des tests du workflow [Project tests](.github/workflows/test-runner.yml), [CodeQL Advanced](.github/workflows/codeql-analysis.yml) analyse le backend Java et le frontend TypeScript pour les pull requests internes vers `master`, les pushs sur `master` et chaque samedi à 12 h 45 UTC. Un lancement manuel de **Project tests** lance aussi l'analyse après les tests.
+
+Pour l'activer, ajoutez ce workflow à la branche par défaut du dépôt et vérifiez que GitHub Actions est activé. Le dépôt doit être public ou disposer de GitHub Code Security. Si la configuration CodeQL par défaut est déjà activée, passez à la configuration avancée dans **Settings > Advanced Security > CodeQL analysis** afin d'utiliser ce workflow. Les résultats sont visibles dans **Security > Code scanning** après la première analyse réussie.
+
 ### Images Docker
+
+Après la réussite des tests frontend et backend du workflow **Project tests**, [Build Docker images](.github/workflows/docker-build.yml) construit les images `front`, `back` et `standalone` pour les pull requests vers `master` et lors d'un lancement manuel. Après un push sur `master`, il les publie sur GHCR sous `ghcr.io/<owner>/<repository>-<image>` avec les tags `latest` et `sha-<7 premiers caractères du commit>`.
+
+#### Démarrer avec Docker Compose
+
+Depuis la racine du dépôt, construire et démarrer le client et le serveur dans deux conteneurs :
+
+```shell
+docker compose up --build
+```
+
+Le client est disponible sur https://localhost et l'API sur http://localhost:8081. Pour arrêter les conteneurs, exécuter `docker compose down`.
+
+Pour utiliser un seul conteneur contenant le client et le serveur, arrêter d'abord les deux conteneurs puis démarrer le service `standalone` :
+
+```shell
+docker compose down
+docker compose up --build standalone
+```
+
+Pour arrêter ce service, exécuter `docker compose --profile standalone down`. Les deux modes utilisent les mêmes ports et ne peuvent donc pas fonctionner simultanément. Le client appelle `http://localhost:8081` depuis le navigateur : ouvrir l'application depuis la machine qui exécute Docker.
 
 #### Client
 
@@ -135,10 +166,10 @@ docker build --target back -t orion-microcrm-back:latest .
 ##### Exécuter l'image
 
 ```shell
-docker run -it --rm -p 8080:8080 orion-microcrm-back:latest
+docker run -it --rm -p 8081:8081 orion-microcrm-back:latest
 ```
 
-L'API sera disponible sur http://localhost:8080.
+L'API sera disponible sur http://localhost:8081.
 
 #### Tout en un
 
@@ -148,8 +179,13 @@ docker build --target standalone -t orion-microcrm-standalone:latest .
 
 ##### Exécuter l'image
 
-```shell
-docker run -it --rm -p 8080:8080 -p 80:80 -p 443:443 orion-microcrm-standalone:latest
+```powershell
+docker run -it --rm `
+  --name microcrm `
+  -p 80:80 `
+  -p 443:443 `
+  -p 8081:8081 `
+  orion-microcrm-standalone:latest
 ```
 
-L'application sera disponible sur https://localhost et l'API sur http://localhost:8080.
+L'application sera disponible sur https://localhost et l'API sur http://localhost:8081.
