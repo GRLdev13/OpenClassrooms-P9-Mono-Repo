@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '45 12 * * 6'
 
 permissions:
   contents: read
@@ -78,7 +80,7 @@ jobs:
           cache-dependency-path: front/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm i
         working-directory: front
 
       - name: Run frontend tests
@@ -113,3 +115,23 @@ jobs:
           name: frontend-coverage-report
           path: front/coverage/microcrm/
           if-no-files-found: warn
+
+  docker-images:
+    name: Docker images
+    needs: [backend-tests, frontend-tests]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name == 'push' && github.ref == 'refs/heads/master') }}
+    uses: ./.github/workflows/docker-build.yml
+    permissions:
+      contents: read
+      packages: write
+
+  codeql:
+    name: CodeQL
+    needs: [backend-tests, frontend-tests]
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'pull_request' && github.base_ref == 'master' && github.event.pull_request.head.repo.full_name == github.repository) }}
+    uses: ./.github/workflows/codeql-analysis.yml
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+      security-events: write
