@@ -1,0 +1,31 @@
+services:
+  back:
+    image: orion-microcrm-back:latest
+    build:
+      context: .
+      target: back
+    ports:
+      - "8081:8081"
+
+  front:
+    image: orion-microcrm-front:latest
+    build:
+      context: .
+      target: front
+    depends_on:
+      - back
+    ports:
+      - "80:80"
+      - "443:443"
+
+  standalone:
+    profiles:
+      - standalone
+    image: orion-microcrm-standalone:latest
+    build:
+      context: .
+      target: standalone
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8081:8081"
