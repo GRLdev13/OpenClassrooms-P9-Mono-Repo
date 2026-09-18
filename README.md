@@ -139,6 +139,19 @@ docker compose up --build standalone
 
 Pour arrêter ce service, exécuter `docker compose --profile standalone down`. Les deux modes utilisent les mêmes ports et ne peuvent donc pas fonctionner simultanément. Le client appelle `http://localhost:8081` depuis le navigateur : ouvrir l'application depuis la machine qui exécute Docker.
 
+#### Envoyer les logs Docker vers ELK
+
+Le service Filebeat de `elk/compose.yml` détecte les conteneurs `front` et `back` grâce à leurs labels Docker. Il lit leurs logs standard, les transmet à Logstash sur le port 5044, puis Logstash les indexe dans Elasticsearch sous `app-logs-*`. Le frontend écrit aussi ses requêtes HTTP dans les logs grâce à la configuration Caddy.
+
+Depuis la racine du dépôt, lancer ou actualiser les deux projets Compose :
+
+```shell
+docker compose -f elk/compose.yml up -d
+docker compose up -d --build front back
+```
+
+Générer quelques requêtes sur l'application, puis ouvrir Kibana sur http://localhost:5601. Dans Discover, créer une vue de données `app-logs-*` avec `@timestamp` comme champ temporel et filtrer sur `service.name` (`front` ou `back`). Filebeat lit les fichiers de logs Docker du moteur hôte ; cette configuration suppose le pilote Docker `json-file` et un moteur Docker Linux, comme les conteneurs Linux de Docker Desktop.
+
 #### Client
 
 ##### Construire l'image

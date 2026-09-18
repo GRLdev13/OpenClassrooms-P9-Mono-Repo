@@ -4,6 +4,14 @@ services:
     build:
       context: .
       target: back
+    labels:
+      microcrm_logs: "true"
+      microcrm_service: back
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "8081:8081"
 
@@ -12,6 +20,14 @@ services:
     build:
       context: .
       target: front
+    labels:
+      microcrm_logs: "true"
+      microcrm_service: front
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - back
     ports:

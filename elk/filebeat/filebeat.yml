@@ -1,0 +1,21 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      templates:
+        - condition:
+            equals:
+              docker.container.labels.microcrm_logs: "true"
+          config:
+            - type: filestream
+              id: container-${data.docker.container.id}
+              close.on_state_change.removed: false
+              parsers:
+                - container: ~
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              fields_under_root: true
+              fields:
+                service.name: ${data.docker.container.labels.microcrm_service}
+
+output.logstash:
+  hosts: ["logstash:5044"]
