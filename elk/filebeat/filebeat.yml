@@ -19,3 +19,5 @@ filebeat.autodiscover:
 
 output.logstash:
   hosts: ["logstash:5044"]
+  pipelining: 0
+  ttl: 30s
