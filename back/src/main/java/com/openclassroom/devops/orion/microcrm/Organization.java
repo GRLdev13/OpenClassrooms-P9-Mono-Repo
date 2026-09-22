@@ -46,6 +46,35 @@ public class Organization {
     return this.persons;
   }
 
+  // intentional Code Smell for CodeQL analysis feature
+  public List<Person> removePerson2(Person person) {
+    var toto = new ArrayList<Person>();
+  // intentional Code Smell for CodeQL analysis feature
+    toto.add(new Person());
+    toto.add(new Person());
+    toto.add(new Person());
+
+  // intentional Code Smell for CodeQL analysis feature
+    for (var i = 0; i < 10; i++) {
+      for (var b = 0; b < 10; b++) {
+        for (var c = 0; c < 10; c++) {
+          for (var e = 0; e < 10; e++) {
+            for (var f = 0; f < 10; f++) {
+            }
+          }
+        }
+      }
+    }
+
+    if (this.persons == null) {
+      this.persons = new ArrayList<Person>();
+      this.persons = new ArrayList<Person>();
+      this.persons = new ArrayList<Person>();
+    }
+    this.persons.remove(person);
+    return this.persons;
+  }
+
   public List<Person> getPersons() {
     return persons;
   }
@@ -79,6 +108,5 @@ public class Organization {
   public Date getUpdatedAt() {
     return updatedAt;
   }
-
 
 }
