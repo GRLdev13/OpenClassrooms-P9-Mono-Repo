@@ -141,7 +141,7 @@ Pour arrêter ce service, exécuter `docker compose --profile standalone down`. 
 
 #### Envoyer les logs Docker vers ELK
 
-Le service Filebeat de `elk/compose.yml` détecte les conteneurs `front` et `back` grâce à leurs labels Docker. Il lit leurs logs standard, les transmet à Logstash sur le port 5044, puis Logstash les indexe dans Elasticsearch sous `app-logs-*`. Le frontend écrit aussi ses requêtes HTTP dans les logs grâce à la configuration Caddy.
+Le service Filebeat de `elk/compose.yml` détecte les conteneurs `front` et `back` grâce à leurs labels Docker. Il lit leurs logs standard, les transmet à Logstash sur le port 5044, puis Logstash les indexe dans Elasticsearch sous `app-logs-*`. Caddy journalise les requêtes HTTP du frontend ; le backend journalise les requêtes HTTP avec leur méthode, leur chemin, leur statut et leur durée. Les messages de la console JavaScript du navigateur ne sont pas des logs du conteneur `front`.
 
 Depuis la racine du dépôt, lancer ou actualiser les deux projets Compose :
 
@@ -150,7 +150,9 @@ docker compose -f elk/compose.yml up -d
 docker compose up -d --build front back
 ```
 
-Générer quelques requêtes sur l'application, puis ouvrir Kibana sur http://localhost:5601. Dans Discover, créer une vue de données `app-logs-*` avec `@timestamp` comme champ temporel et filtrer sur `service.name` (`front` ou `back`). Filebeat lit les fichiers de logs Docker du moteur hôte ; cette configuration suppose le pilote Docker `json-file` et un moteur Docker Linux, comme les conteneurs Linux de Docker Desktop.
+Générer quelques requêtes sur l'application, puis ouvrir Kibana sur http://localhost:5601. Dans Discover, sélectionner une vue de données qui cible `app-logs-*` (ou la créer avec `@timestamp` comme champ temporel), choisir une période qui inclut les requêtes récentes, puis filtrer sur `service.name` (`front` ou `back`). Une vue sur les données d'exemple de Kibana ou une période trop courte n'affichera pas ces logs. Filebeat lit les fichiers de logs Docker du moteur hôte ; cette configuration suppose le pilote Docker `json-file` et un moteur Docker Linux, comme les conteneurs Linux de Docker Desktop.
+
+Pour afficher les requêtes HTTP dans Discover, filtrer sur `event.dataset: "http.access"` et ajouter les colonnes `service.name`, `http.request.method`, `url.original`, `http.response.status_code` et `http_access.duration_ms`. Pour les seules requêtes HTTPS du frontend, ajouter `service.name: front and http_access.request.tls.version:*`. Les requêtes du backend fournissent aussi `http_access.metrics.thread_cpu_ms` (temps CPU du thread), `http_access.metrics.heap_used_bytes` (mémoire JVM après la requête) et `http_access.metrics.heap_delta_bytes` (variation pendant la requête). Le temps CPU exclut les traitements asynchrones sur d'autres threads ; les mesures de mémoire concernent toute la JVM et peuvent varier à cause d'autres requêtes ou du ramasse-miettes. Si les nouveaux champs n'apparaissent pas, actualiser les champs de la vue de données dans sa page de gestion.
 
 #### Client
 
