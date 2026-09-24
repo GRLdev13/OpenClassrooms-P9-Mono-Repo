@@ -18,7 +18,6 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     #Force time out for build fail test:
-    timeout-minutes: 2
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
