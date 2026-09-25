@@ -54,18 +54,6 @@ public class Organization {
     toto.add(new Person());
     toto.add(new Person());
 
-  // intentional Code Smell for CodeQL analysis feature
-    for (var i = 0; i < 10; i++) {
-      for (var b = 0; b < 10; b++) {
-        for (var c = 0; c < 10; c++) {
-          for (var e = 0; e < 10; e++) {
-            for (var f = 0; f < 10; f++) {
-            }
-          }
-        }
-      }
-    }
-
     if (this.persons == null) {
       this.persons = new ArrayList<Person>();
       this.persons = new ArrayList<Person>();

@@ -9,6 +9,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -51,9 +52,18 @@ public class HttpRequestLoggingFilter extends OncePerRequestFilter {
             }
 
             Map<String, Object> accessLog = new LinkedHashMap<>();
+            Map<String, Object> requestLog = new LinkedHashMap<>();
+            requestLog.put("method", request.getMethod());
+            requestLog.put("uri", request.getRequestURI());
+
+            Object matchedRoute = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+            if (matchedRoute != null) {
+                requestLog.put("route", matchedRoute.toString());
+            }
+
             accessLog.put("logger", "http.log.access.back");
             accessLog.put("msg", "handled request");
-            accessLog.put("request", Map.of("method", request.getMethod(), "uri", request.getRequestURI()));
+            accessLog.put("request", requestLog);
             accessLog.put("status", response.getStatus());
             accessLog.put("duration", (System.nanoTime() - startedAt) / 1_000_000_000.0);
             accessLog.put("metrics", metrics);

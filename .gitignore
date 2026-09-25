@@ -6,3 +6,5 @@ front/angular.json
 front/package-lock.json
 *.log
 codeql*
+ci-workflow.puml
+ci-workflow.drawio
