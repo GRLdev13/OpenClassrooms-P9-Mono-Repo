@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [front, back, standalone]
+        image: [front, back]
 
     steps:
       - name: Checkout repository
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [front, back, standalone]
+        image: [front, back]
 
     steps:
       - name: Checkout repository

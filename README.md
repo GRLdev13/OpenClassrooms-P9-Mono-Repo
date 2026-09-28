@@ -116,9 +116,15 @@ Après la réussite des tests du workflow [Project tests](.github/workflows/test
 
 Pour l'activer, ajoutez ce workflow à la branche par défaut du dépôt et vérifiez que GitHub Actions est activé. Le dépôt doit être public ou disposer de GitHub Code Security. Si la configuration CodeQL par défaut est déjà activée, passez à la configuration avancée dans **Settings > Advanced Security > CodeQL analysis** afin d'utiliser ce workflow. Les résultats sont visibles dans **Security > Code scanning** après la première analyse réussie.
 
+Le workflow utilise la suite CodeQL `security-and-quality` pour les trois langages analysés (GitHub Actions, Java et TypeScript). Elle ajoute aux requêtes de sécurité étendues des contrôles de fiabilité et de maintenabilité. Elle peut remonter davantage de faux positifs ; il faut examiner les alertes avant de les classer ou de modifier le code.
+
+Pour empêcher la fusion d'une pull request qui introduit une alerte grave, créez dans GitHub **Settings > Rules > Rulesets** une règle de branche visant `master`, activez **Require code scanning results**, choisissez **CodeQL** et réglez **Security alerts** sur **High or higher** (ou **Critical**) et **Alerts** sur **Errors**. La seule exécution de CodeQL ne rend pas ses alertes bloquantes.
+
+CodeQL ne fournit pas de taux de duplication, de seuil de complexité cyclomatique ni de pourcentage de couverture de tests pour ce projet. Pour ces critères, utilisez des contrôles séparés dans la CI : PMD CPD sur `back/src/main/java` et `front/src` pour les duplications, les règles PMD `CyclomaticComplexity`/`CognitiveComplexity` pour Java et ESLint `complexity` pour TypeScript. Les rapports JaCoCo et Karma sont déjà générés ; des seuils bloquants peuvent être ajoutés avec `jacocoTestCoverageVerification` dans `back/build.gradle` (à relier à `check` ou au job de tests) et `coverageReporter.check.global` dans `front/karma.conf.js`. Définissez ces seuils après avoir vérifié les valeurs des rapports actuels et ajouté les tests manquants, afin de ne pas faire échouer la CI dès leur activation.
+
 ### Images Docker
 
-Après la réussite des tests frontend et backend du workflow **Project tests**, [Build Docker images](.github/workflows/docker-build.yml) construit les images `front`, `back` et `standalone` pour les pull requests vers `master` et lors d'un lancement manuel. Après un push sur `master`, il les publie sur GHCR sous `ghcr.io/<owner>/<repository>-<image>` avec les tags `latest` et `sha-<7 premiers caractères du commit>`.
+La construction et la publication des images Docker sont temporairement désactivées dans le workflow **Project tests**. Les tests et CodeQL continuent de s'exécuter. Le fichier [Build Docker images](.github/workflows/docker-build.yml) conserve la configuration à réactiver ultérieurement.
 
 #### Démarrer avec Docker Compose
 
@@ -129,15 +135,6 @@ docker compose up --build
 ```
 
 Le client est disponible sur https://localhost et l'API sur http://localhost:8081. Pour arrêter les conteneurs, exécuter `docker compose down`.
-
-Pour utiliser un seul conteneur contenant le client et le serveur, arrêter d'abord les deux conteneurs puis démarrer le service `standalone` :
-
-```shell
-docker compose down
-docker compose up --build standalone
-```
-
-Pour arrêter ce service, exécuter `docker compose --profile standalone down`. Les deux modes utilisent les mêmes ports et ne peuvent donc pas fonctionner simultanément. Le client appelle `http://localhost:8081` depuis le navigateur : ouvrir l'application depuis la machine qui exécute Docker.
 
 #### Envoyer les logs Docker vers ELK
 
@@ -152,7 +149,67 @@ docker compose up -d --build front back
 
 Générer quelques requêtes sur l'application, puis ouvrir Kibana sur http://localhost:5601. Dans Discover, sélectionner une vue de données qui cible `app-logs-*` (ou la créer avec `@timestamp` comme champ temporel), choisir une période qui inclut les requêtes récentes, puis filtrer sur `service.name` (`front` ou `back`). Une vue sur les données d'exemple de Kibana ou une période trop courte n'affichera pas ces logs. Filebeat lit les fichiers de logs Docker du moteur hôte ; cette configuration suppose le pilote Docker `json-file` et un moteur Docker Linux, comme les conteneurs Linux de Docker Desktop.
 
-Pour afficher les requêtes HTTP dans Discover, filtrer sur `event.dataset: "http.access"` et ajouter les colonnes `service.name`, `http.request.method`, `url.original`, `http.response.status_code` et `http_access.duration_ms`. Pour les seules requêtes HTTPS du frontend, ajouter `service.name: front and http_access.request.tls.version:*`. Les requêtes du backend fournissent aussi `http_access.metrics.thread_cpu_ms` (temps CPU du thread), `http_access.metrics.heap_used_bytes` (mémoire JVM après la requête) et `http_access.metrics.heap_delta_bytes` (variation pendant la requête). Le temps CPU exclut les traitements asynchrones sur d'autres threads ; les mesures de mémoire concernent toute la JVM et peuvent varier à cause d'autres requêtes ou du ramasse-miettes. Si les nouveaux champs n'apparaissent pas, actualiser les champs de la vue de données dans sa page de gestion.
+##### Tracer les routes HTTP dans Kibana
+
+Chaque requête HTTP produit désormais un événement `http.access`. Logstash remplace son champ `message` par une trace courte directement lisible dans la colonne par défaut de Discover :
+
+```text
+GET /persons/{id} -> 200
+POST /organizations -> 201
+GET /route-inconnue -> 404
+```
+
+La trace contient la méthode HTTP, la route appelée et le code de réponse. Pour le backend, le filtre HTTP récupère le modèle de route reconnu par Spring après le traitement de la requête. Les appels `/persons/1` et `/persons/2` peuvent ainsi être regroupés sous une même route telle que `/persons/{id}`. L'URL concrète reste conservée séparément. Pour le frontend servi par Caddy, qui ne connaît pas les modèles de routes Angular, l'URL appelée est utilisée comme route.
+
+Les principaux champs indexés sont :
+
+| Champ | Contenu |
+| --- | --- |
+| `message` | Trace lisible, par exemple `GET /persons/{id} -> 200` |
+| `service.name` | Service ayant traité la requête : `front` ou `back` |
+| `http.route` | Modèle de route Spring, ou URL appelée pour le frontend |
+| `url.original` | URL réellement demandée, avec ses paramètres concrets |
+| `http.request.method` | Méthode HTTP (`GET`, `POST`, `PUT`, `DELETE`, etc.) |
+| `http.response.status_code` | Code de réponse HTTP |
+| `http_access.duration_ms` | Durée totale de la requête en millisecondes |
+| `event.duration` | Durée totale au format ECS, en nanosecondes |
+
+Dans Discover, sélectionner la vue de données `app-logs-*`, puis utiliser le filtre KQL suivant :
+
+```text
+event.dataset: "http.access"
+```
+
+La colonne `message` suffit pour lire les appels. Pour une vue plus détaillée, ajouter les colonnes `@timestamp`, `service.name`, `http.route`, `url.original`, `http.response.status_code` et `http_access.duration_ms`.
+
+Afficher uniquement les erreurs HTTP :
+
+```text
+event.dataset: "http.access" and http.response.status_code >= 400
+```
+
+Afficher les appels du backend sur une route donnée :
+
+```text
+event.dataset: "http.access" and service.name: "back" and http.route: "/persons/{id}"
+```
+
+Afficher les requêtes HTTPS reçues par le frontend :
+
+```text
+event.dataset: "http.access" and service.name: "front" and http_access.request.tls.version: *
+```
+
+Les événements backend exposent également `http_access.metrics.thread_cpu_ms` (temps CPU du thread), `http_access.metrics.heap_used_bytes` (mémoire JVM après la requête) et `http_access.metrics.heap_delta_bytes` (variation pendant la requête). Le temps CPU exclut les traitements asynchrones exécutés sur d'autres threads. Les mesures de mémoire concernent toute la JVM et peuvent donc varier à cause d'autres requêtes ou du ramasse-miettes.
+
+Après une modification du filtre ou du pipeline, reconstruire le backend et recréer Logstash :
+
+```shell
+docker compose up -d --build back
+docker compose -f elk/compose.yml up -d --force-recreate logstash
+```
+
+Générer ensuite de nouvelles requêtes. Les anciens documents Elasticsearch ne sont pas transformés rétroactivement. Si `http.route` ou les autres nouveaux champs ne sont pas proposés dans Kibana, actualiser la liste des champs de la vue de données `app-logs-*` dans **Stack Management > Data Views**.
 
 #### Client
 
@@ -185,22 +242,3 @@ docker run -it --rm -p 8081:8081 orion-microcrm-back:latest
 ```
 
 L'API sera disponible sur http://localhost:8081.
-
-#### Tout en un
-
-```shell
-docker build --target standalone -t orion-microcrm-standalone:latest .
-```
-
-##### Exécuter l'image
-
-```powershell
-docker run -it --rm `
-  --name microcrm `
-  -p 80:80 `
-  -p 443:443 `
-  -p 8081:8081 `
-  orion-microcrm-standalone:latest
-```
-
-L'application sera disponible sur https://localhost et l'API sur http://localhost:8081.
