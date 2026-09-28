@@ -26,7 +26,6 @@ RUN apk add --no-cache caddy
 
 WORKDIR /app
 
-EXPOSE 80
 EXPOSE 443
 
 CMD ["/usr/sbin/caddy", "run"]
@@ -42,23 +41,3 @@ WORKDIR /app
 EXPOSE 8081
 
 CMD ["java", "-jar", "/app/back/microcrm-0.0.1-SNAPSHOT.jar"]
-
-FROM alpine:3.19 AS standalone
-
-COPY --from=front-build /src/dist/microcrm/browser /app/front
-COPY --from=back-build /src/build/libs/microcrm-0.0.1-SNAPSHOT.jar /app/back/microcrm-0.0.1-SNAPSHOT.jar
-COPY misc/docker/Caddyfile /app/Caddyfile
-COPY misc/docker/supervisor.ini /app/supervisor.ini
-
-RUN apk add --no-cache caddy openjdk21-jre-headless supervisor
-
-WORKDIR /app
-
-EXPOSE 80
-EXPOSE 443
-EXPOSE 8081
-
-CMD ["/usr/bin/supervisord", "-c", "/app/supervisor.ini"]
-
-
-
