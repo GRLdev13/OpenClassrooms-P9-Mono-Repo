@@ -135,7 +135,7 @@ docker compose up --build
 ```
 
 Le client est disponible sur https://localhost et l'API sur http://localhost:8081. Pour arrêter les conteneurs, exécuter `docker compose down`.
-
+azeazezae
 #### Envoyer les logs Docker vers ELK
 
 Le service Filebeat de `elk/compose.yml` détecte les conteneurs `front` et `back` grâce à leurs labels Docker. Il lit leurs logs standard, les transmet à Logstash sur le port 5044, puis Logstash les indexe dans Elasticsearch sous `app-logs-*`. Caddy journalise les requêtes HTTP du frontend ; le backend journalise les requêtes HTTP avec leur méthode, leur chemin, leur statut et leur durée. Les messages de la console JavaScript du navigateur ne sont pas des logs du conteneur `front`.
